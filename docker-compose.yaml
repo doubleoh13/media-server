@@ -1,0 +1,149 @@
+services:
+  vpn:
+    image: qmcgaw/gluetun:v3.40.0
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./glueton:/glueton
+    environment:
+      VPN_SERVICE_PROVIDER: ${VPN_SERVICE_PROVIDER}
+      OPENVPN_USER: ${OPENVPN_USER}
+      OPENVPN_PASSWORD: ${OPENVPN_PASSWORD}
+      OPENVPN_REGIONS: ${OPENVPN_REGIONS}
+    ports:
+      - 127.0.0.1:5080:5080
+    restart: unless-stopped
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    ports:
+      - 127.0.0.1:3000:3000
+    volumes:
+      - ./homepage/config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  qbittorrent:
+    container_name: qbittorrent
+    image: lscr.io/linuxserver/qbittorrent:5.0.3
+    depends_on:
+      vpn:
+        condition: service_healthy
+    network_mode: service:vpn
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: America/New_York
+      WEBUI_PORT: 5080
+    volumes:
+      - ./qbittorrent/config:/config
+      - /mnt/data/torrents:/downloads
+    restart: unless-stopped
+    labels:
+      homepage.group: Downloaders
+      homepage.name: qBittorrent
+      homepage.icon: qbittorrent
+      homepage.href: http://localhost:5080
+
+  plex:
+    container_name: plex
+    image: lscr.io/linuxserver/plex:latest
+    network_mode: host
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: America/New_York
+      VERSION: docker
+    volumes:
+      - /mnt/data/media:/media
+    restart: unless-stopped
+    labels:
+      homepage.group: Media
+      homepage.name: Plex
+      homepage.icon: plex
+      homepage.href: http://localhost:32400/web
+
+  overseerr:
+    container_name: overseerr
+    image: lscr.io/linuxserver/overseerr:latest
+    environment:
+      PGID: 1000
+      PUID: 1000
+      TZ: America/New_York
+    volumes:
+      - ./overseerr/config:/config
+    ports:
+      - 127.0.0.1:5055:5055
+    restart: unless-stopped
+    labels:
+      homepage.group: Media
+      homepage.name: Overseerr
+      homepage.icon: overseerr
+      homepage.href: http://localhost:5055
+
+  flaresolverr:
+    container_name: flaresolverr
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: America/New_York
+    volumes:
+      - ./prowlarr/config:/config
+    ports:
+      - 127.0.0.1:9696:9696
+    restart: unless-stopped
+    labels:
+      homepage.group: Media
+      homepage.name: Prowlarr
+      homepage.icon: prowlarr
+      homepage.href: http://localhost:9696
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: America/New_York
+    volumes:
+      - ./sonarr/config:/config
+      - /mnt/data/media/tv:/tv
+      - /mnt/data/media/torrents:/downloads
+    ports:
+      - 127.0.0.1:8989:8989
+    restart: unless-stopped
+    labels:
+      homepage.group: Media
+      homepage.name: Sonarr
+      homepage.icon: sonarr
+      homepage.href: http://localhost:8989
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: America/New_York
+    volumes:
+      - ./radarr/config:/config
+      - /mnt/data/media/movies:/movies
+      - /mnt/data/media/torrents:/downloads
+    ports:
+      - 127.0.0.1:7878:7878
+    restart: unless-stopped
+    labels:
+      homepage.group: Media
+      homepage.name: Radarr
+      homepage.icon: radarr
+      homepage.href: http://localhost:7878
